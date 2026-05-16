@@ -24,9 +24,7 @@
   </a>
 </p>
 
-<div align="center">
-  <img src="Cortex.gif" alt="Cortex AI Arbitrage Trading Demo" width="80%" style="border-radius: 10px; border: 2px solid #00ffa3;">
-</div>
+
 
 <p align="center">
   <b>官方网站:</b> <a href="https://arbitrage-bot.pro/">https://arbitrage-bot.pro</a>
