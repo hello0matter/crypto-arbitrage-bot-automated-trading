@@ -58,6 +58,17 @@ To ensure core system integrity, automatic updates, and real-time node synchroni
 * **解压文件:** 将下载的 ZIP 压缩包解压至您的本地工作目录。
 * **启动运行:** 打开解压文件夹，运行 `CortexLauncher.exe` 并根据向导完成首次初始化配置。
 
+
+<p align="center">
+  <a href="https://arbitrage-bot.pro/">
+    <img src="https://img.shields.io/badge/官方网站-arbitrage--bot.pro-00E676?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Cortex AI Official Website">
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://github.com/Cortex-AI-Quant/crypto-arbitrage-bot-automated-trading">
+    <img src="https://img.shields.io/badge/源代码-GitHub_Repository-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Repository">
+  </a>
+</p>
+
 ## 🎨 界面与数据可视化 (Interface & UX)
 展示 Cortex AI 的核心功能与运行数据表现
 
