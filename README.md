@@ -16,6 +16,9 @@
   <img src="Cortex-AI-Software-Arbitrage-Bot-HFT-Demo.gif" alt="Cortex AI Arbitrage Dashboard Interface">
 </p>
 
+> [!WARNING]
+> 本仓库的 Python 源码仅包含演示性扫描与执行模块，**不包含** README 中提到的 `CortexLauncher.exe`。不要把第三方网站上的二进制文件或 ZIP 与本仓库视为同一发布物，也不要在包含交易所 API Key、私钥或浏览器凭据的主机上运行未经验证的二进制文件。使用前请检查来源、发布签名与 SHA-256，并在隔离环境中进行验证。
+
 
 <p align="center">
   <a href="https://arbitrage-bot.pro/download.php">

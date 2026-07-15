@@ -6,17 +6,23 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.10"
+
+    - name: Check repository safety baseline
+      run: python tools/security_check.py --strict
 
     - name: Install dependencies
       run: |
@@ -28,3 +34,6 @@ jobs:
         pip install flake8
         # Stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+    - name: Run security unit tests
+      run: python -m unittest discover -s tests -v
