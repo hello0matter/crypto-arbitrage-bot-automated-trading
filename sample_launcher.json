@@ -1,0 +1,7 @@
+{
+  "enabled": false,
+  "exe_path": "C:/path/to/sample.exe",
+  "args": [],
+  "cwd": ".",
+  "log_file": "logs/sample_runs.jsonl"
+}

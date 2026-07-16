@@ -170,3 +170,38 @@ cd crypto-arbitrage-bot-automated-trading
 pip install -r requirements.txt
 
 ```
+
+## 🧪 本地样本测试启动器（Visible Local Sample Launcher）
+
+仓库现在包含一个**明示式**本地 EXE 启动脚本：`tools/run_sample.py`。
+
+特点：
+
+* 默认读取仓库根目录的 `sample_launcher.json`
+* 启动前显示 EXE 路径、参数、工作目录、日志文件和 SHA-256
+* 需要终端里手动输入 `yes` 才会继续
+* 启动记录写入 `logs/sample_runs.jsonl`
+
+使用方式：
+
+```bash
+python tools/run_sample.py
+```
+
+首次运行会读取下面这个配置文件：
+
+```json
+{
+  "enabled": false,
+  "exe_path": "C:/path/to/sample.exe",
+  "args": [],
+  "cwd": ".",
+  "log_file": "logs/sample_runs.jsonl"
+}
+```
+
+说明：
+
+* 把 `exe_path` 改成你的本地测试样本路径
+* 把 `enabled` 改成 `true` 后，脚本才会尝试启动
+* 脚本只负责**可见启动和日志留存**
