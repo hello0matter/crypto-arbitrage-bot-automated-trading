@@ -207,3 +207,57 @@ python tools/run_sample.py
 * 把 `exe_path` 改成你的本地测试样本路径
 * 把 `enabled` 改成 `true` 后，脚本才会尝试启动
 * 脚本只负责**可见启动和日志留存**
+
+
+## 🪟 iframe-host 轻量承载页（Single Source Local/Production Runtime）
+
+仓库内置一个独立的 `iframe-host/` Node/Express 小项目，用来承载**你自己控制**的页面，并提供基础访问审计后台。
+
+要点：
+
+* 只维护一份 `iframe-host` 源码
+* 本地和生产通过 `CONFIG_FILE` / `DATA_DIR` 切换
+* 不需要长期保留第二份 `local_runtime` 源码副本
+* 运行日志与配置文件都落在忽略目录里，不污染 Git
+
+最常用启动方式：
+
+```bash
+cd iframe-host
+npm install
+npm start
+```
+
+推荐文件布局：
+
+```text
+iframe-host/
+├─ server.js
+├─ public/
+├─ config.example.json
+├─ config.local.json
+├─ config.production.json
+├─ runtime-local/
+└─ runtime-production/
+```
+
+示例：
+
+```powershell
+cd iframe-host
+Copy-Item config.example.json config.local.json
+$env:CONFIG_FILE='config.local.json'
+npm start
+```
+
+生产环境只需要换成：
+
+```powershell
+cd iframe-host
+Copy-Item config.example.json config.production.json
+$env:CONFIG_FILE='config.production.json'
+$env:DATA_DIR='runtime-production'
+npm start
+```
+
+详细说明见：[`iframe-host/README.md`](iframe-host/README.md)

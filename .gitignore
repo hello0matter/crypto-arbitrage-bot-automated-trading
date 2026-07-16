@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local runtime artifacts
+logs/
+iframe-host/node_modules/
+iframe-host/config.json
+iframe-host/config.local.json
+iframe-host/config.production.json
+iframe-host/runtime-local/
+iframe-host/runtime-production/
