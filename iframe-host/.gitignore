@@ -1,4 +1,8 @@
 node_modules/
 config.json
+config.local.json
+config.production.json
 data/
+runtime-local/
+runtime-production/
 npm-debug.log*

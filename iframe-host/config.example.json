@@ -5,6 +5,7 @@
   "admin_user": "admin",
   "admin_password": "CHANGE-ME-TO-A-STRONG-PASSWORD",
   "trust_proxy": false,
+  "data_dir": "data",
   "retention_days": 30,
   "max_records": 10000
 }

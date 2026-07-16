@@ -7,9 +7,9 @@ const path = require("path");
 const readline = require("readline");
 
 const ROOT = __dirname;
-const CONFIG_FILE = path.join(ROOT, "config.json");
-const DATA_DIR = path.join(ROOT, "data");
-const ACCESS_FILE = path.join(DATA_DIR, "access.jsonl");
+const CONFIG_FILE = path.resolve(ROOT, process.env.CONFIG_FILE || "config.json");
+let DATA_DIR = path.resolve(ROOT, process.env.DATA_DIR || "data");
+let ACCESS_FILE = path.join(DATA_DIR, "access.jsonl");
 const PUBLIC_DIR = path.join(ROOT, "public");
 const TOKENS = new Map();
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -73,6 +73,7 @@ async function createInteractiveConfig() {
     admin_user: userInput || "admin",
     admin_password: passwordInput || generatedPassword,
     trust_proxy: parseBoolean(trustProxyInput, false),
+    data_dir: "data",
     retention_days: 30,
     max_records: 10000,
   };
@@ -98,6 +99,7 @@ async function loadConfig() {
     adminUser: process.env.ADMIN_USER || fileConfig.admin_user || "admin",
     adminPassword: process.env.ADMIN_PASSWORD || fileConfig.admin_password || "",
     trustProxy: parseBoolean(process.env.TRUST_PROXY, Boolean(fileConfig.trust_proxy)),
+    dataDir: path.resolve(ROOT, process.env.DATA_DIR || fileConfig.data_dir || "data"),
     retentionDays: clampNumber(process.env.RETENTION_DAYS || fileConfig.retention_days, 30, 1, 3650),
     maxRecords: clampNumber(process.env.MAX_RECORDS || fileConfig.max_records, 10000, 100, 1000000),
   };
@@ -218,6 +220,8 @@ function buildPage(config) {
 
 async function main() {
   const config = await loadConfig();
+  DATA_DIR = config.dataDir;
+  ACCESS_FILE = path.join(DATA_DIR, "access.jsonl");
   fs.mkdirSync(DATA_DIR, { recursive: true });
   pruneAccessRecords(config);
 
@@ -287,6 +291,8 @@ async function main() {
     console.log(`\n已启动: http://127.0.0.1:${config.port}`);
     console.log(`目标站点: ${config.targetUrl}`);
     console.log(`管理后台: http://127.0.0.1:${config.port}/admin`);
+    console.log(`配置文件: ${CONFIG_FILE}`);
+    console.log(`数据目录: ${DATA_DIR}`);
     console.log(`反向代理 IP 信任: ${config.trustProxy ? "开启" : "关闭"}`);
   });
 }
