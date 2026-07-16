@@ -1,0 +1,10 @@
+{
+  "target_url": "https://YOUR-DOMAIN/",
+  "title": "Embedded Site",
+  "port": 3030,
+  "admin_user": "admin",
+  "admin_password": "CHANGE-ME-TO-A-STRONG-PASSWORD",
+  "trust_proxy": false,
+  "retention_days": 30,
+  "max_records": 10000
+}
