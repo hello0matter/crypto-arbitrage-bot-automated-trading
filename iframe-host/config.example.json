@@ -1,11 +1,9 @@
 {
-  "target_url": "https://YOUR-DOMAIN/",
-  "title": "Embedded Site",
+  "target_url": "https://docs.example.com/handbook",
+  "allowed_origins": [
+    "https://docs.example.com"
+  ],
+  "title": "Internal handbook",
   "port": 3030,
-  "admin_user": "admin",
-  "admin_password": "CHANGE-ME-TO-A-STRONG-PASSWORD",
-  "trust_proxy": false,
-  "data_dir": "data",
-  "retention_days": 30,
-  "max_records": 10000
+  "bind_host": "127.0.0.1"
 }

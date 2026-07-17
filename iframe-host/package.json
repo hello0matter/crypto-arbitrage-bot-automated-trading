@@ -2,7 +2,7 @@
   "name": "owned-iframe-host",
   "version": "1.0.0",
   "private": true,
-  "description": "Interactive Express host page for embedding a site you control.",
+  "description": "Constrained Express host page for pre-approved internal HTTPS content.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
