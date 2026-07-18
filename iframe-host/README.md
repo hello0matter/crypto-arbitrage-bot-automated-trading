@@ -57,6 +57,12 @@ npm start
 
 `PORT` and `BIND_HOST` may be overridden through environment variables. Target URLs and allowed origins are intentionally read only from the configuration file.
 
+Quick validation:
+
+```powershell
+npm run check
+```
+
 ## Deployment notes
 
 The iframe is sandboxed with scripts only. Login forms, pop-ups, top-level redirects, downloads, and browser permissions are intentionally unavailable. Some sites will also refuse embedding through their own `X-Frame-Options` or CSP headers; that is expected and should not be bypassed.
@@ -72,3 +78,10 @@ location /internal-content/ {
 ```
 
 This service does not expose an admin UI or record visitor activity. Edit `config.json` locally and restart the service to change the approved page.
+
+For a dedicated Linux host, use the templates in `deploy/`:
+
+- `deploy/iframe-host.service`
+- `deploy/iframe-host.env.example`
+- `deploy/nginx-internal-content.conf`
+- `deploy/INSTALL.md`

@@ -5,7 +5,8 @@
   "description": "Constrained Express host page for pre-approved internal HTTPS content.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "check": "node --check server.js && node check-config.js config.example.json"
   },
   "dependencies": {
     "express": "^4.21.2"
