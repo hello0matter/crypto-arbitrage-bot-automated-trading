@@ -5,5 +5,19 @@
   "bind_host": "127.0.0.1",
   "admin_path": "admin",
   "admin_username": "admin",
-  "admin_password": "CHANGE-ME-TO-A-STRONG-PASSWORD"
+  "admin_password": "CHANGE-ME-TO-A-STRONG-PASSWORD",
+  "replace_rules": [
+    {
+      "comment": "Example: redirect exe download to your own file",
+      "pattern": "https://docs.example.com/launcher.exe",
+      "replacement": "https://your-server.com/file.exe",
+      "mode": "literal"
+    },
+    {
+      "comment": "Example: strip a referral parameter via regex",
+      "pattern": "[?&]ref=[^&\"']+",
+      "replacement": "",
+      "mode": "regex"
+    }
+  ]
 }

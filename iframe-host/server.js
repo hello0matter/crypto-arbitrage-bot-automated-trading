@@ -14,20 +14,20 @@ const ADMIN_PAGE_FILE = path.join(ROOT, "public", "admin.html");
 const TOKENS = new Map();
 const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 
-// Strip these from upstream responses
 const STRIP_RESPONSE = new Set([
   "x-frame-options",
   "content-security-policy",
   "content-security-policy-report-only",
 ]);
 
-// Don't forward these to upstream
 const HOP_BY_HOP = new Set([
   "connection", "keep-alive", "proxy-authenticate",
   "proxy-authorization", "te", "trailers", "transfer-encoding", "upgrade",
 ]);
 
 function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+// ── Config validation ────────────────────────────────────────────────────────
 
 function parseAdminPath(v) {
   const s = String(v || "").trim();
@@ -63,6 +63,28 @@ function parseProxyPrefix(v) {
   return s;
 }
 
+function parseReplaceRules(value) {
+  if (!value || !Array.isArray(value)) return [];
+  return value.map((r, i) => {
+    if (typeof r.pattern !== "string" || !r.pattern) {
+      throw new Error(`replace_rules[${i}]: pattern required`);
+    }
+    if (typeof r.replacement !== "string") {
+      throw new Error(`replace_rules[${i}]: replacement required (can be empty string)`);
+    }
+    const mode = r.mode || "literal";
+    if (!["literal", "regex"].includes(mode)) {
+      throw new Error(`replace_rules[${i}]: mode must be literal or regex`);
+    }
+    if (mode === "regex") {
+      try { new RegExp(r.pattern); } catch (e) {
+        throw new Error(`replace_rules[${i}]: invalid regex — ${e.message}`);
+      }
+    }
+    return { pattern: r.pattern, replacement: r.replacement, mode, comment: r.comment || "" };
+  });
+}
+
 function readConfigFile() {
   if (!fs.existsSync(CONFIG_FILE)) throw new Error(`Config not found: ${CONFIG_FILE}`);
   try { return JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")); }
@@ -82,6 +104,7 @@ function normalizeConfig(raw) {
     proxyPrefix: parseProxyPrefix(
       process.env.PROXY_PREFIX !== undefined ? process.env.PROXY_PREFIX : raw.proxy_prefix
     ),
+    replaceRules: parseReplaceRules(raw.replace_rules),
     targetBase: tu.toString().replace(/\/$/, ""),
     targetOrigin: tu.origin,
   };
@@ -98,6 +121,7 @@ function serializeConfig(c) {
     admin_path: c.adminPath,
     admin_username: c.adminUsername,
     admin_password: c.adminPassword,
+    replace_rules: c.replaceRules,
   };
 }
 
@@ -108,8 +132,16 @@ function writeConfig(c) {
 }
 
 function toPublicConfig(c) {
-  return { admin_path: c.adminPath, admin_username: c.adminUsername, proxy_prefix: c.proxyPrefix, target_url: c.targetBase };
+  return {
+    admin_path: c.adminPath,
+    admin_username: c.adminUsername,
+    proxy_prefix: c.proxyPrefix,
+    replace_rules: c.replaceRules,
+    target_url: c.targetBase,
+  };
 }
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
 
 function safeEqual(a, b) {
   const ba = Buffer.from(String(a)), bb = Buffer.from(String(b));
@@ -127,6 +159,89 @@ function issueToken() {
   return t;
 }
 
+// ── Content rewriting ────────────────────────────────────────────────────────
+
+function applyRules(text, rules) {
+  for (const rule of rules) {
+    if (rule.mode === "regex") {
+      try { text = text.replace(new RegExp(rule.pattern, "g"), rule.replacement); } catch {}
+    } else {
+      text = text.split(rule.pattern).join(rule.replacement);
+    }
+  }
+  return text;
+}
+
+// Rewrite a single URL value (href/src/url() argument)
+function rewriteSingleUrl(u, origin, prefix) {
+  const t = u.trim();
+  if (t.startsWith(origin + "/") || t === origin) return prefix + t.slice(origin.length) || "/";
+  const sr = "//" + new URL(origin).host;
+  if (t.startsWith(sr + "/") || t === sr) return prefix + t.slice(sr.length);
+  if (t.startsWith("/") && !t.startsWith("//")) return prefix + t;
+  return u;
+}
+
+function rewriteHtml(html, origin, prefix, rules) {
+  const eo = escapeRe(origin);
+  const eh = escapeRe(new URL(origin).host);
+
+  // Remove existing base, inject ours so relative URLs resolve correctly
+  html = html.replace(/<base\b[^>]*>/gi, "");
+  if (prefix) html = html.replace(/(<head\b[^>]*>)/i, `$1<base href="${prefix}/">`);
+
+  // Full origin URLs in text/attributes
+  html = html.replace(new RegExp(eo + "(/[^\"'<>\\s]*)", "g"), (_, p) => prefix + p);
+  html = html.replace(new RegExp(eo + "(?=[\"'\\s<>]|$)", "g"), prefix || "/");
+
+  // Protocol-relative origin
+  html = html.replace(new RegExp("//" + eh + "(/[^\"'<>\\s]*)", "g"), (_, p) => prefix + p);
+
+  // Absolute paths in common attributes
+  if (prefix) {
+    html = html.replace(/((?:href|src|action|data-src|data-href|content)=["'])(\/(?!\/)[^"']*)/gi,
+      (_, a, p) => `${a}${prefix}${p}`);
+    // srcset with space-separated entries
+    html = html.replace(/(srcset=["'])([^"']+)/gi, (_, a, v) => {
+      const rw = v.replace(/(\/(?!\/)[^\s,]+)/g, m => prefix + m);
+      return a + rw;
+    });
+  }
+
+  // url() in inline style attributes
+  html = html.replace(/(style=["'][^"']*url\()(['"]?)(\/(?!\/)[^'")]+)\2([^"']*["'])/gi,
+    (m) => m.replace(/url\((['"]?)(\/(?!\/)[^'")]+)\1\)/g,
+      (_, q, u) => `url(${q}${prefix}${u}${q})`));
+
+  return applyRules(html, rules);
+}
+
+function rewriteCss(css, origin, prefix, rules) {
+  const eo = escapeRe(origin);
+  const eh = escapeRe(new URL(origin).host);
+
+  // url() — the main fix for broken layout
+  css = css.replace(/url\((['"]?)([^'")]+)\1\)/gi, (m, q, u) => {
+    const rw = rewriteSingleUrl(u, origin, prefix);
+    return rw === u ? m : `url(${q}${rw}${q})`;
+  });
+
+  // @import
+  css = css.replace(/@import\s+(['"])([^'"]+)\1/gi, (_, q, u) =>
+    `@import ${q}${rewriteSingleUrl(u, origin, prefix)}${q}`);
+
+  // Full origin and protocol-relative URLs remaining in text
+  css = css.replace(new RegExp(eo + "(/[^\"'<>\\s;,)]*)", "g"), (_, p) => prefix + p);
+  css = css.replace(new RegExp("//" + eh + "(/[^\"'<>\\s;,)]*)", "g"), (_, p) => prefix + p);
+
+  return applyRules(css, rules);
+}
+
+function rewriteJs(js, origin, prefix, rules) {
+  // Only apply custom rules on JS — minimal origin substitution to avoid breaking framework code
+  return applyRules(js, rules);
+}
+
 function rewriteLocation(loc, origin, prefix) {
   if (loc.startsWith(origin)) return (prefix + loc.slice(origin.length)) || "/";
   const h = new URL(origin).host;
@@ -135,29 +250,30 @@ function rewriteLocation(loc, origin, prefix) {
   return loc;
 }
 
-function rewriteHtml(html, origin, prefix) {
-  const eo = escapeRe(origin);
-  const eh = escapeRe(new URL(origin).host);
+function bufferAndRewrite(proxyRes, res, outHeaders, rewriteFn) {
+  delete outHeaders["content-length"];
+  delete outHeaders["content-encoding"];
+  const enc = (proxyRes.headers["content-encoding"] || "").toLowerCase();
+  let body = proxyRes;
+  if (enc === "gzip") body = proxyRes.pipe(zlib.createGunzip());
+  else if (enc === "br") body = proxyRes.pipe(zlib.createBrotliDecompress());
+  else if (enc === "deflate") body = proxyRes.pipe(zlib.createInflate());
 
-  // Replace existing base tags, inject ours
-  html = html.replace(/<base\b[^>]*>/gi, "");
-  if (prefix) html = html.replace(/(<head\b[^>]*>)/i, `$1<base href="${prefix}/">`);
-
-  // Full origin URLs -> prefix + path
-  html = html.replace(new RegExp(eo + "(/[^\"'<>\\s]*)", "g"), (_, p) => prefix + p);
-  html = html.replace(new RegExp(eo + "(?=[\"'\\s<>]|$)", "g"), prefix || "/");
-
-  // Protocol-relative
-  html = html.replace(new RegExp("//" + eh + "(/[^\"'<>\\s]*)", "g"), (_, p) => prefix + p);
-
-  // Absolute paths in HTML attributes (only when proxied under a prefix)
-  if (prefix) {
-    html = html.replace(/((?:href|src|action)=["'])(\/(?!\/)[^"']*)/gi,
-      (_, a, p) => `${a}${prefix}${p}`);
-  }
-
-  return html;
+  const chunks = [];
+  body.on("data", c => chunks.push(c));
+  body.on("end", () => {
+    try {
+      const result = rewriteFn(Buffer.concat(chunks).toString("utf8"));
+      res.writeHead(proxyRes.statusCode, outHeaders);
+      res.end(result, "utf8");
+    } catch {
+      if (!res.headersSent) res.writeHead(502).end();
+    }
+  });
+  body.on("error", () => { if (!res.headersSent) res.writeHead(502).end(); });
 }
+
+// ── Proxy handler ─────────────────────────────────────────────────────────────
 
 function proxyRequest(config, req, res) {
   let parsed;
@@ -165,9 +281,11 @@ function proxyRequest(config, req, res) {
   catch { return res.status(400).end(); }
 
   const upstreamUrl = config.targetBase + parsed.pathname + parsed.search;
+
   const fwdHeaders = {};
   for (const [k, v] of Object.entries(req.headers)) {
-    if (!HOP_BY_HOP.has(k.toLowerCase()) && k !== "host") fwdHeaders[k] = v;
+    const lk = k.toLowerCase();
+    if (!HOP_BY_HOP.has(lk) && lk !== "host") fwdHeaders[k] = v;
   }
   fwdHeaders.host = new URL(config.targetOrigin).host;
 
@@ -194,7 +312,9 @@ function proxyRequest(config, req, res) {
       if (lk === "set-cookie") {
         const cookies = Array.isArray(v) ? v : [v];
         outHeaders[k] = cookies.map(c =>
-          c.replace(/;\s*domain=[^;]+/gi, "").replace(/;\s*samesite=[^;]+/gi, "; SameSite=Lax")
+          c.replace(/;\s*domain=[^;]+/gi, "")
+           .replace(/;\s*samesite=[^;]+/gi, "; SameSite=Lax")
+           .replace(/;\s*\bsecure\b/gi, "")
         );
         continue;
       }
@@ -202,33 +322,28 @@ function proxyRequest(config, req, res) {
     }
 
     const ct = (proxyRes.headers["content-type"] || "").toLowerCase();
-    if (!ct.includes("text/html")) {
-      res.writeHead(proxyRes.statusCode, outHeaders);
-      proxyRes.pipe(res);
+    const { targetOrigin: origin, proxyPrefix: prefix, replaceRules: rules } = config;
+
+    if (ct.includes("text/html")) {
+      bufferAndRewrite(proxyRes, res, outHeaders,
+        text => rewriteHtml(text, origin, prefix, rules));
       return;
     }
 
-    // Buffer HTML for URL rewriting
-    delete outHeaders["content-length"];
-    delete outHeaders["content-encoding"];
-    const enc = (proxyRes.headers["content-encoding"] || "").toLowerCase();
-    let body = proxyRes;
-    if (enc === "gzip") body = proxyRes.pipe(zlib.createGunzip());
-    else if (enc === "br") body = proxyRes.pipe(zlib.createBrotliDecompress());
-    else if (enc === "deflate") body = proxyRes.pipe(zlib.createInflate());
+    if (ct.includes("text/css")) {
+      bufferAndRewrite(proxyRes, res, outHeaders,
+        text => rewriteCss(text, origin, prefix, rules));
+      return;
+    }
 
-    const chunks = [];
-    body.on("data", c => chunks.push(c));
-    body.on("end", () => {
-      const html = rewriteHtml(
-        Buffer.concat(chunks).toString("utf8"),
-        config.targetOrigin,
-        config.proxyPrefix
-      );
-      res.writeHead(proxyRes.statusCode, outHeaders);
-      res.end(html, "utf8");
-    });
-    body.on("error", () => { if (!res.headersSent) res.writeHead(502).end(); });
+    if (ct.includes("javascript") && rules.length > 0) {
+      bufferAndRewrite(proxyRes, res, outHeaders,
+        text => rewriteJs(text, origin, prefix, rules));
+      return;
+    }
+
+    res.writeHead(proxyRes.statusCode, outHeaders);
+    proxyRes.pipe(res);
   });
 
   proxyReq.setTimeout(30000, () => {
@@ -240,20 +355,20 @@ function proxyRequest(config, req, res) {
   if (!["GET", "HEAD"].includes(req.method)) req.pipe(proxyReq); else proxyReq.end();
 }
 
+// ── App setup ────────────────────────────────────────────────────────────────
+
 function main() {
   let config = loadConfig();
   const adminBase = `/${config.adminPath}`;
   const app = express();
-  const json = express.json({ limit: "64kb" });
+  const json = express.json({ limit: "128kb" });
   app.disable("x-powered-by");
 
-  // Admin UI
   app.get([adminBase, `${adminBase}/`], (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     res.sendFile(ADMIN_PAGE_FILE);
   });
 
-  // Login (no auth token needed)
   app.post(`${adminBase}/api/login`, json, (req, res) => {
     if (!safeEqual(req.body?.username, config.adminUsername) ||
         !safeEqual(req.body?.password, config.adminPassword)) {
@@ -263,7 +378,6 @@ function main() {
     res.json({ ok: true, token: issueToken() });
   });
 
-  // Auth middleware for remaining admin API routes
   app.use(`${adminBase}/api`, (req, res, next) => {
     const t = String(req.headers.authorization || "").replace(/^Bearer /, "");
     if (!t || !TOKENS.has(t)) return res.status(401).json({ ok: false, message: "unauthorized" });
@@ -272,16 +386,18 @@ function main() {
     next();
   });
 
-  app.get(`${adminBase}/api/config`, (req, res) => res.json({ ok: true, config: toPublicConfig(config) }));
+  app.get(`${adminBase}/api/config`, (req, res) =>
+    res.json({ ok: true, config: toPublicConfig(config) }));
 
   app.put(`${adminBase}/api/config`, json, (req, res) => {
     try {
       const b = req.body || {};
       const raw = {
         ...serializeConfig(config),
-        target_url: b.target_url ?? config.targetBase,
-        proxy_prefix: b.proxy_prefix ?? config.proxyPrefix,
-        admin_username: b.admin_username ?? config.adminUsername,
+        target_url: b.target_url !== undefined ? b.target_url : config.targetBase,
+        proxy_prefix: b.proxy_prefix !== undefined ? b.proxy_prefix : config.proxyPrefix,
+        replace_rules: b.replace_rules !== undefined ? b.replace_rules : config.replaceRules,
+        admin_username: b.admin_username !== undefined ? b.admin_username : config.adminUsername,
       };
       if (String(b.admin_password || "").trim()) raw.admin_password = b.admin_password;
       const next = normalizeConfig(raw);
@@ -293,11 +409,11 @@ function main() {
     }
   });
 
-  // Reverse-proxy everything else to the target
   app.use((req, res) => proxyRequest(config, req, res));
 
   const server = app.listen(config.port, config.bindHost, () => {
     console.log(`Listening ${config.bindHost}:${config.port}  target: ${config.targetBase}  admin: ${adminBase}`);
+    if (config.replaceRules.length) console.log(`Replace rules: ${config.replaceRules.length}`);
   });
 
   process.on("SIGTERM", () => server.close(() => process.exit(0)));
