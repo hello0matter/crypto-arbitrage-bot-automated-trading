@@ -63,6 +63,14 @@ Quick validation:
 npm run check
 ```
 
+Build an uploadable archive:
+
+```powershell
+npm run package
+```
+
+The archive is written to `dist/` and contains only the runtime files plus `deploy/`.
+
 ## Deployment notes
 
 The iframe is sandboxed with scripts only. Login forms, pop-ups, top-level redirects, downloads, and browser permissions are intentionally unavailable. Some sites will also refuse embedding through their own `X-Frame-Options` or CSP headers; that is expected and should not be bypassed.

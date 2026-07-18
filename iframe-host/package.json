@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node check-config.js config.example.json"
+    "check": "node --check server.js && node check-config.js config.example.json",
+    "package": "powershell -ExecutionPolicy Bypass -File ./package-deploy.ps1"
   },
   "dependencies": {
     "express": "^4.21.2"
