@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings</title>
+  <style>
+    :root {
+      --bg: #f4f1e8;
+      --panel: #fffdfa;
+      --ink: #1d1b18;
+      --muted: #736a5c;
+      --line: #d7cdbc;
+      --accent: #0f766e;
+      --accent-2: #0b5f58;
+      --danger: #b42318;
+      --shadow: 0 20px 60px rgba(29, 27, 24, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.12), transparent 30%),
+        linear-gradient(180deg, #faf7f2 0%, var(--bg) 100%);
+      color: var(--ink);
+      font: 15px/1.5 Georgia, "Times New Roman", serif;
+    }
+
+    .shell { max-width: 860px; margin: 0 auto; padding: 32px 20px 40px; }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .header { padding: 24px 28px 16px; border-bottom: 1px solid rgba(215, 205, 188, 0.75); }
+    .eyebrow { margin: 0 0 8px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font: 12px/1.2 Arial, sans-serif; }
+    h1 { margin: 0; font-size: 32px; line-height: 1.1; font-weight: 700; }
+    .body { padding: 28px; }
+    .grid { display: grid; gap: 18px; }
+    .field { display: grid; gap: 8px; }
+
+    label {
+      font: 13px/1.2 Arial, sans-serif;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--ink);
+      padding: 12px 14px;
+      font: inherit;
+    }
+
+    .row { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .hint { color: var(--muted); font-size: 13px; margin: 0; }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 20px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      font: 700 14px/1 Arial, sans-serif;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    button:hover { background: var(--accent-2); }
+    button:disabled { opacity: 0.5; cursor: default; }
+
+    button.secondary {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--line);
+    }
+
+    .status { min-height: 20px; font: 13px/1.4 Arial, sans-serif; color: var(--muted); }
+    .status.error { color: var(--danger); }
+    .hidden { display: none; }
+
+    @media (max-width: 640px) {
+      .shell { padding: 16px 14px 28px; }
+      .header, .body { padding: 20px; }
+      h1 { font-size: 28px; }
+      button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="card" id="loginCard">
+      <div class="header">
+        <p class="eyebrow">Control</p>
+        <h1>Access settings</h1>
+      </div>
+      <div class="body grid">
+        <div class="row">
+          <div class="field">
+            <label for="username">Username</label>
+            <input id="username" autocomplete="username" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input id="password" type="password" autocomplete="current-password">
+          </div>
+        </div>
+        <div class="actions">
+          <button id="loginButton" type="button">Sign in</button>
+          <div class="status" id="loginStatus"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card hidden" id="settingsCard">
+      <div class="header">
+        <p class="eyebrow">Control</p>
+        <h1>Proxy settings</h1>
+      </div>
+      <div class="body grid">
+        <div class="field">
+          <label for="targetUrl">Target URL</label>
+          <input id="targetUrl" inputmode="url" spellcheck="false">
+          <p class="hint">The HTTPS site to proxy. All paths under this host are forwarded.</p>
+        </div>
+        <div class="field">
+          <label for="proxyPrefix">Proxy prefix</label>
+          <input id="proxyPrefix" spellcheck="false" placeholder="/internal-content">
+          <p class="hint">URL prefix on this server (e.g. /internal-content). Leave empty on a dedicated host.</p>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="adminUsername">Admin username</label>
+            <input id="adminUsername" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="adminPassword">New admin password</label>
+            <input id="adminPassword" type="password" autocomplete="new-password">
+            <p class="hint">Leave empty to keep the current password.</p>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="secondary" id="logoutButton" type="button">Sign out</button>
+          <button id="saveButton" type="button">Save changes</button>
+        </div>
+        <div class="status" id="saveStatus"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const ADMIN_BASE = window.location.pathname.replace(/\/$/, "");
+    const TOKEN_KEY = "proxyAdminToken";
+
+    const dom = {
+      adminPassword: document.getElementById("adminPassword"),
+      adminUsername: document.getElementById("adminUsername"),
+      loginButton: document.getElementById("loginButton"),
+      loginCard: document.getElementById("loginCard"),
+      loginStatus: document.getElementById("loginStatus"),
+      logoutButton: document.getElementById("logoutButton"),
+      password: document.getElementById("password"),
+      proxyPrefix: document.getElementById("proxyPrefix"),
+      saveButton: document.getElementById("saveButton"),
+      saveStatus: document.getElementById("saveStatus"),
+      settingsCard: document.getElementById("settingsCard"),
+      targetUrl: document.getElementById("targetUrl"),
+      username: document.getElementById("username"),
+    };
+
+    function getToken() { return sessionStorage.getItem(TOKEN_KEY) || ""; }
+
+    function setStatus(el, text, isError) {
+      el.textContent = text || "";
+      el.classList.toggle("error", Boolean(isError));
+    }
+
+    async function api(urlPath, options) {
+      const res = await fetch(ADMIN_BASE + urlPath, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...(getToken() ? { Authorization: "Bearer " + getToken() } : {}),
+          ...(options && options.headers),
+        },
+      });
+      const data = await res.json().catch(() => ({ ok: false, message: "invalid response" }));
+      if (!res.ok) throw new Error(data.message || "request failed");
+      return data;
+    }
+
+    function showSettings() {
+      dom.loginCard.classList.add("hidden");
+      dom.settingsCard.classList.remove("hidden");
+    }
+
+    function showLogin() {
+      sessionStorage.removeItem(TOKEN_KEY);
+      dom.settingsCard.classList.add("hidden");
+      dom.loginCard.classList.remove("hidden");
+    }
+
+    async function loadConfig() {
+      const data = await api("/api/config");
+      dom.targetUrl.value = data.config.target_url || "";
+      dom.proxyPrefix.value = data.config.proxy_prefix || "";
+      dom.adminUsername.value = data.config.admin_username || "admin";
+      dom.adminPassword.value = "";
+      setStatus(dom.saveStatus, "");
+      showSettings();
+    }
+
+    async function login() {
+      setStatus(dom.loginStatus, "");
+      try {
+        const data = await api("/api/login", {
+          method: "POST",
+          body: JSON.stringify({ username: dom.username.value.trim(), password: dom.password.value }),
+        });
+        sessionStorage.setItem(TOKEN_KEY, data.token);
+        dom.password.value = "";
+        await loadConfig();
+      } catch (e) {
+        setStatus(dom.loginStatus, e.message, true);
+      }
+    }
+
+    async function save() {
+      setStatus(dom.saveStatus, "");
+      dom.saveButton.disabled = true;
+      try {
+        const payload = {
+          target_url: dom.targetUrl.value.trim(),
+          proxy_prefix: dom.proxyPrefix.value.trim(),
+          admin_username: dom.adminUsername.value.trim(),
+        };
+        if (dom.adminPassword.value.trim()) payload.admin_password = dom.adminPassword.value;
+        await api("/api/config", { method: "PUT", body: JSON.stringify(payload) });
+        dom.adminPassword.value = "";
+        setStatus(dom.saveStatus, "Saved.");
+      } catch (e) {
+        setStatus(dom.saveStatus, e.message, true);
+      } finally {
+        dom.saveButton.disabled = false;
+      }
+    }
+
+    dom.loginButton.addEventListener("click", login);
+    dom.password.addEventListener("keydown", e => { if (e.key === "Enter") login(); });
+    dom.logoutButton.addEventListener("click", showLogin);
+    dom.saveButton.addEventListener("click", save);
+
+    if (getToken()) loadConfig().catch(showLogin);
+  </script>
+</body>
+</html>

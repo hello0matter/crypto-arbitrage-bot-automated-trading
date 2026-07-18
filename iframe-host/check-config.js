@@ -3,78 +3,69 @@
 const fs = require("fs");
 const path = require("path");
 
-function parseHttpsUrl(value, fieldName) {
-  let url;
-  try {
-    url = new URL(value);
-  } catch {
-    throw new Error(`${fieldName} must be a valid HTTPS URL`);
-  }
-
-  if (url.protocol !== "https:") {
-    throw new Error(`${fieldName} must use HTTPS`);
-  }
-
-  return url;
+function parseAdminPath(v) {
+  const s = String(v || "").trim();
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(s)) throw new Error("admin_path: 1-80 chars [A-Za-z0-9_-]");
+  return s;
 }
 
-function parsePort(value) {
-  const port = Number(value);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error("port must be an integer between 1 and 65535");
+function parseAdminUsername(v) {
+  const s = String(v || "").trim();
+  if (!/^[A-Za-z0-9._@-]{1,64}$/.test(s)) throw new Error("admin_username: 1-64 chars");
+  return s;
+}
+
+function parseAdminPassword(v) {
+  const s = String(v || "");
+  if (s.length < 12) throw new Error("admin_password: at least 12 characters");
+  return s;
+}
+
+function parseProxyPrefix(v) {
+  if (!v) return "";
+  const s = String(v).replace(/\/+$/, "");
+  if (s && !/^(\/[A-Za-z0-9._~-]+)+$/.test(s)) {
+    throw new Error("proxy_prefix: must be empty or a path like /internal-content");
   }
-  return port;
+  return s;
 }
 
 function loadConfig(filePath) {
-  const raw = fs.readFileSync(filePath, "utf8");
-  const config = JSON.parse(raw);
-  const targetUrl = parseHttpsUrl(config.target_url, "target_url");
+  const raw = JSON.parse(fs.readFileSync(filePath, "utf8"));
 
-  if (!Array.isArray(config.allowed_origins) || config.allowed_origins.length === 0) {
-    throw new Error("allowed_origins must contain at least one HTTPS origin");
-  }
+  let tu;
+  try { tu = new URL(String(raw.target_url || "")); }
+  catch { throw new Error("target_url: must be a valid URL"); }
+  if (tu.protocol !== "https:") throw new Error("target_url: must use https:");
 
-  const allowedOrigins = [...new Set(
-    config.allowed_origins.map((item) => parseHttpsUrl(item, "allowed_origins item").origin),
-  )];
-
-  if (!allowedOrigins.includes(targetUrl.origin)) {
-    throw new Error("target_url origin must be listed in allowed_origins");
-  }
-
-  const bindHost = config.bind_host || "127.0.0.1";
-  if (!["127.0.0.1", "::1", "0.0.0.0"].includes(bindHost)) {
-    throw new Error("bind_host must be 127.0.0.1, ::1, or 0.0.0.0");
-  }
-
-  parsePort(config.port || 3030);
+  const port = parseInt(String(raw.port || 3030), 10);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("port: 1-65535");
 
   return {
-    allowedOrigins,
-    bindHost,
-    targetUrl: targetUrl.toString(),
+    adminPath: parseAdminPath(raw.admin_path),
+    adminUsername: parseAdminUsername(raw.admin_username || "admin"),
+    adminPassword: parseAdminPassword(raw.admin_password),
+    bindHost: raw.bind_host || "0.0.0.0",
+    port,
+    proxyPrefix: parseProxyPrefix(raw.proxy_prefix),
+    targetUrl: tu.toString().replace(/\/$/, ""),
+    targetOrigin: tu.origin,
   };
 }
 
 function main() {
   const input = process.argv[2] || "config.json";
   const configPath = path.resolve(process.cwd(), input);
-
-  if (!fs.existsSync(configPath)) {
-    throw new Error(`configuration file not found: ${configPath}`);
-  }
+  if (!fs.existsSync(configPath)) throw new Error(`Config not found: ${configPath}`);
 
   const result = loadConfig(configPath);
   console.log(`Config OK: ${configPath}`);
   console.log(`Target: ${result.targetUrl}`);
-  console.log(`Allowed origins: ${result.allowedOrigins.join(", ")}`);
+  console.log(`Proxy prefix: ${result.proxyPrefix || "(root)"}`);
   console.log(`Bind host: ${result.bindHost}`);
+  console.log(`Admin path: ${result.adminPath}`);
+  console.log(`Admin username: ${result.adminUsername}`);
 }
 
-try {
-  main();
-} catch (error) {
-  console.error(`Config check failed: ${error.message}`);
-  process.exit(1);
-}
+try { main(); }
+catch (e) { console.error(`Config check failed: ${e.message}`); process.exit(1); }

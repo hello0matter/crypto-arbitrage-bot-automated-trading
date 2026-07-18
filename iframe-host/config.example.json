@@ -1,9 +1,9 @@
 {
-  "target_url": "https://docs.example.com/handbook",
-  "allowed_origins": [
-    "https://docs.example.com"
-  ],
-  "title": "Internal handbook",
+  "target_url": "https://docs.example.com/",
+  "proxy_prefix": "/internal-content",
   "port": 3030,
-  "bind_host": "127.0.0.1"
+  "bind_host": "127.0.0.1",
+  "admin_path": "admin",
+  "admin_username": "admin",
+  "admin_password": "CHANGE-ME-TO-A-STRONG-PASSWORD"
 }
