@@ -91,27 +91,17 @@ function buildPage(config) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${safeTitle}</title>
   <style>
-    :root { color-scheme: light; font-family: system-ui, sans-serif; }
-    body { margin: 0; background: #f5f7fa; color: #172033; }
-    header { padding: 16px 24px; background: #fff; border-bottom: 1px solid #dfe5ef; }
-    h1 { margin: 0; font-size: 18px; }
-    p { margin: 6px 0 0; color: #53627a; font-size: 13px; }
-    main { height: calc(100vh - 86px); padding: 16px; box-sizing: border-box; }
-    iframe { width: 100%; height: 100%; border: 1px solid #dfe5ef; border-radius: 10px; background: #fff; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #fff; }
+    body { font-family: system-ui, sans-serif; }
+    iframe { display: block; width: 100vw; height: 100vh; border: 0; background: #fff; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>${safeTitle}</h1>
-    <p>This page embeds pre-approved internal HTTPS content. It does not collect visitor analytics.</p>
-  </header>
-  <main>
-    <iframe
-      src="${safeUrl}"
-      title="${safeTitle}"
-      sandbox="allow-scripts"
-      referrerpolicy="no-referrer"></iframe>
-  </main>
+  <iframe
+    src="${safeUrl}"
+    title="${safeTitle}"
+    sandbox="allow-scripts"
+    referrerpolicy="no-referrer"></iframe>
 </body>
 </html>`;
 }
@@ -135,10 +125,6 @@ function main() {
 
   app.get("/", (req, res) => {
     res.type("html").send(buildPage(config));
-  });
-
-  app.get("/healthz", (req, res) => {
-    res.json({ ok: true, target_origin: new URL(config.targetUrl).origin });
   });
 
   app.use((req, res) => {

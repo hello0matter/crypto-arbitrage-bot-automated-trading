@@ -46,7 +46,6 @@ npm start
 Open:
 
 - Embedded page: `http://127.0.0.1:3030/`
-- Health check: `http://127.0.0.1:3030/healthz`
 
 To use a separate, local-only configuration file:
 
