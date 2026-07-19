@@ -236,6 +236,18 @@ function rewriteHtml(html, origin, prefix, rules) {
 function rewriteCss(css, origin, prefix, rules) {
   const eo = escapeRe(origin);
   const eh = escapeRe(new URL(origin).host);
+  const originHost = new URL(origin).host;
+
+  // Route external (non-origin) @import url() through our /--ext-cdn/ handler.
+  // Prevents render-blocking when the CDN is unreachable (e.g. Google Fonts in China).
+  css = css.replace(/@import\s+url\((['"]?)(https?:\/\/[^'")]+)\1\)/gi, (m, q, extUrl) => {
+    try {
+      const eu = new URL(extUrl);
+      if (eu.host === originHost) return m; // same origin — leave for url() pass below
+      const ep = `${prefix}/--ext-cdn/?h=${encodeURIComponent(eu.host)}&p=${encodeURIComponent(eu.pathname + eu.search)}`;
+      return `@import url(${q}${ep}${q})`;
+    } catch { return m; }
+  });
 
   // url() — the main fix for broken layout
   css = css.replace(/url\((['"]?)([^'")]+)\1\)/gi, (m, q, u) => {
@@ -425,6 +437,57 @@ function main() {
     } catch (e) {
       res.status(400).json({ ok: false, message: e.message });
     }
+  });
+
+  // External CDN proxy: serves CSS @import and font resources on behalf of the browser.
+  // Solves render-blocking caused by blocked CDNs (e.g. Google Fonts behind GFW).
+  // Path format: /--ext-cdn/?h=<hostname>&p=<urlencoded-path-and-query>
+  app.get("/--ext-cdn/", (req, res) => {
+    const host = String(req.query.h || "").slice(0, 253);
+    const rawPath = String(req.query.p || "/");
+    if (!host || !/^[a-z0-9.-]+$/i.test(host)) return res.status(400).end();
+    let up;
+    try { up = new URL("https://" + host + rawPath); } catch { return res.status(400).end(); }
+
+    const extReq = https.request({
+      hostname: up.hostname, port: 443,
+      path: up.pathname + up.search, method: "GET",
+      headers: { "user-agent": "Mozilla/5.0", "accept": "*/*" },
+    }, extRes => {
+      const ct = (extRes.headers["content-type"] || "").toLowerCase();
+      if (!ct.includes("css") && !ct.includes("font") && !ct.includes("woff") && !ct.includes("opentype")) {
+        return res.status(403).end();
+      }
+      const outH = {
+        "content-type": ct,
+        "cache-control": "public, max-age=86400",
+        "access-control-allow-origin": "*",
+      };
+      if (ct.includes("css")) {
+        const chunks = [];
+        extRes.on("data", c => chunks.push(c));
+        extRes.on("end", () => {
+          let text = Buffer.concat(chunks).toString("utf8");
+          const pfx = config.proxyPrefix;
+          // Rewrite url() inside fetched CSS so nested font files also go through us
+          text = text.replace(/url\((['"]?)(https?:\/\/[^'")]+)\1\)/gi, (_, q, eu) => {
+            try {
+              const u = new URL(eu);
+              return `url(${q}${pfx}/--ext-cdn/?h=${encodeURIComponent(u.host)}&p=${encodeURIComponent(u.pathname + u.search)}${q})`;
+            } catch { return _; }
+          });
+          res.writeHead(extRes.statusCode, outH);
+          res.end(text, "utf8");
+        });
+        extRes.on("error", () => { if (!res.headersSent) res.writeHead(502).end(); });
+      } else {
+        res.writeHead(extRes.statusCode, outH);
+        extRes.pipe(res);
+      }
+    });
+    extReq.setTimeout(15000, () => extReq.destroy());
+    extReq.on("error", () => { if (!res.headersSent) res.writeHead(502).end(); });
+    extReq.end();
   });
 
   app.use((req, res) => proxyRequest(config, req, res));
