@@ -197,21 +197,26 @@ function rewriteHtml(html, origin, prefix, rules) {
   // Protocol-relative origin
   html = html.replace(new RegExp("//" + eh + "(/[^\"'<>\\s]*)", "g"), (_, p) => prefix + p);
 
-  // Absolute paths in common attributes
+  // Absolute paths in common attributes — skip paths already carrying the prefix
   if (prefix) {
-    html = html.replace(/((?:href|src|action|data-src|data-href|content)=["'])(\/(?!\/)[^"']*)/gi,
-      (_, a, p) => `${a}${prefix}${p}`);
+    html = html.replace(
+      /((?:href|src|action|data-src|data-href|content)=["'])(\/(?!\/)[^"']*)/gi,
+      (m, a, p) => (p === prefix || p.startsWith(prefix + "/")) ? m : `${a}${prefix}${p}`
+    );
     // srcset with space-separated entries
     html = html.replace(/(srcset=["'])([^"']+)/gi, (_, a, v) => {
-      const rw = v.replace(/(\/(?!\/)[^\s,]+)/g, m => prefix + m);
+      const rw = v.replace(/(\/(?!\/)[^\s,]+)/g,
+        m => (m === prefix || m.startsWith(prefix + "/")) ? m : prefix + m);
       return a + rw;
     });
   }
 
-  // url() in inline style attributes
+  // url() in inline style attributes — skip already-prefixed paths
   html = html.replace(/(style=["'][^"']*url\()(['"]?)(\/(?!\/)[^'")]+)\2([^"']*["'])/gi,
     (m) => m.replace(/url\((['"]?)(\/(?!\/)[^'")]+)\1\)/g,
-      (_, q, u) => `url(${q}${prefix}${u}${q})`));
+      (_, q, u) => (u === prefix || u.startsWith(prefix + "/"))
+        ? `url(${q}${u}${q})`
+        : `url(${q}${prefix}${u}${q})`));
 
   return applyRules(html, rules);
 }
