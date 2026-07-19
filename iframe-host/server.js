@@ -186,6 +186,9 @@ function rewriteHtml(html, origin, prefix, rules) {
   const eo = escapeRe(origin);
   const eh = escapeRe(new URL(origin).host);
 
+  // Apply replace_rules FIRST, before URL rewriting, so rules can match original full URLs
+  html = applyRules(html, rules);
+
   // Remove existing base, inject ours so relative URLs resolve correctly
   html = html.replace(/<base\b[^>]*>/gi, "");
   if (prefix) html = html.replace(/(<head\b[^>]*>)/i, `$1<base href="${prefix}/">`);
@@ -230,13 +233,16 @@ function rewriteHtml(html, origin, prefix, rules) {
   // Strip Cloudflare cdn-cgi challenge scripts (they can't work through a proxy domain)
   html = html.replace(/<script\b[^>]*\bsrc=["'][^"']*\/cdn-cgi\/[^"']*["'][^>]*><\/script>/gi, "");
 
-  return applyRules(html, rules);
+  return html;
 }
 
 function rewriteCss(css, origin, prefix, rules) {
   const eo = escapeRe(origin);
   const eh = escapeRe(new URL(origin).host);
   const originHost = new URL(origin).host;
+
+  // Apply replace_rules FIRST before URL rewriting
+  css = applyRules(css, rules);
 
   // Route external (non-origin) @import url() through our /--ext-cdn/ handler.
   // Prevents render-blocking when the CDN is unreachable (e.g. Google Fonts in China).
@@ -265,7 +271,7 @@ function rewriteCss(css, origin, prefix, rules) {
   css = css.replace(new RegExp(eo + "(/[^\"'<>\\s;,)]*)", "g"), (_, p) => prefix + p);
   css = css.replace(new RegExp("//" + eh + "(/[^\"'<>\\s;,)]*)", "g"), (_, p) => prefix + p);
 
-  return applyRules(css, rules);
+  return css;
 }
 
 function rewriteJs(js, origin, prefix, rules) {
