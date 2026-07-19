@@ -218,6 +218,18 @@ function rewriteHtml(html, origin, prefix, rules) {
         ? `url(${q}${u}${q})`
         : `url(${q}${prefix}${u}${q})`));
 
+  // Rewrite relative-path URLs in attribute values (e.g. href="style.css" → href="/prefix/style.css")
+  // Runs after absolute-path pass so only bare relative paths remain
+  if (prefix) {
+    html = html.replace(
+      /((?:href|src|action|data-src|data-href)=["'])([A-Za-z0-9_~.-][^"']*)/gi,
+      (m, a, p) => /^[A-Za-z][A-Za-z0-9+.-]*:/.test(p) ? m : `${a}${prefix}/${p}`
+    );
+  }
+
+  // Strip Cloudflare cdn-cgi challenge scripts (they can't work through a proxy domain)
+  html = html.replace(/<script\b[^>]*\bsrc=["'][^"']*\/cdn-cgi\/[^"']*["'][^>]*><\/script>/gi, "");
+
   return applyRules(html, rules);
 }
 
@@ -330,6 +342,7 @@ function proxyRequest(config, req, res) {
     const { targetOrigin: origin, proxyPrefix: prefix, replaceRules: rules } = config;
 
     if (ct.includes("text/html")) {
+      outHeaders["cache-control"] = "no-store";
       bufferAndRewrite(proxyRes, res, outHeaders,
         text => rewriteHtml(text, origin, prefix, rules));
       return;
