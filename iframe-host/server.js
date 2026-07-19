@@ -251,6 +251,8 @@ function rewriteCss(css, origin, prefix, rules) {
 
   // url() — the main fix for broken layout
   css = css.replace(/url\((['"]?)([^'")]+)\1\)/gi, (m, q, u) => {
+    // Skip URLs already routed through --ext-cdn (prevent double-rewriting)
+    if (u.includes("--ext-cdn")) return m;
     const rw = rewriteSingleUrl(u, origin, prefix);
     return rw === u ? m : `url(${q}${rw}${q})`;
   });
