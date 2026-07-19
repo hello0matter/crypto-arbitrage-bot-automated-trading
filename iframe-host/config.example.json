@@ -19,5 +19,10 @@
       "replacement": "",
       "mode": "regex"
     }
-  ]
+  ],
+  "oauth_bypass_paths": [
+    "/auth/callback",
+    "/oauth/redirect"
+  ],
+  "rewrite_request_headers": true
 }

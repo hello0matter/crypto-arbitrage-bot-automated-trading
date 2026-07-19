@@ -19,6 +19,7 @@ $items = @(
     "package-lock.json",
     "README.md",
     "server.js",
+    "public",
     "deploy"
 )
 

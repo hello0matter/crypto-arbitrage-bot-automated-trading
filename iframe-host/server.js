@@ -95,6 +95,16 @@ function normalizeConfig(raw) {
   const tu = parseTargetUrl(raw.target_url);
   const port = parseInt(String(raw.port || 3030), 10);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("port: 1-65535");
+
+  // Parse OAuth bypass paths (paths that redirect to origin instead of proxying)
+  let oauthBypassPaths = [];
+  if (raw.oauth_bypass_paths && Array.isArray(raw.oauth_bypass_paths)) {
+    oauthBypassPaths = raw.oauth_bypass_paths.filter(p => typeof p === "string" && p.startsWith("/"));
+  }
+
+  // Rewrite request headers (Referer, Origin) to match target origin
+  const rewriteRequestHeaders = raw.rewrite_request_headers !== false; // default true
+
   return {
     adminPassword: parseAdminPassword(process.env.ADMIN_PASSWORD || raw.admin_password),
     adminPath: parseAdminPath(process.env.ADMIN_PATH || raw.admin_path),
@@ -107,6 +117,8 @@ function normalizeConfig(raw) {
     replaceRules: parseReplaceRules(raw.replace_rules),
     targetBase: tu.toString().replace(/\/$/, ""),
     targetOrigin: tu.origin,
+    oauthBypassPaths,
+    rewriteRequestHeaders,
   };
 }
 
@@ -122,6 +134,8 @@ function serializeConfig(c) {
     admin_username: c.adminUsername,
     admin_password: c.adminPassword,
     replace_rules: c.replaceRules,
+    oauth_bypass_paths: c.oauthBypassPaths || [],
+    rewrite_request_headers: c.rewriteRequestHeaders !== false,
   };
 }
 
@@ -138,6 +152,7 @@ function toPublicConfig(c) {
     proxy_prefix: c.proxyPrefix,
     replace_rules: c.replaceRules,
     target_url: c.targetBase,
+    oauth_bypass_paths: c.oauthBypassPaths || [],
   };
 }
 
@@ -288,8 +303,37 @@ function rewriteCss(css, origin, prefix, rules) {
 }
 
 function rewriteJs(js, origin, prefix, rules) {
-  // Only apply custom rules on JS — minimal origin substitution to avoid breaking framework code
-  return applyRules(js, rules);
+  const originUrl = new URL(origin);
+  const originHost = originUrl.host;
+  const originHostname = originUrl.hostname;
+
+  // Apply custom replace_rules first
+  js = applyRules(js, rules);
+
+  // Rewrite hardcoded domain checks in JS (common patterns)
+  // 1. window.location.hostname === 'example.com'
+  const hostPattern = new RegExp(
+    `(window\\.location\\.hostname\\s*[!=]==?\\s*)(['"\`])${escapeRe(originHostname)}\\2`,
+    "gi"
+  );
+  js = js.replace(hostPattern, `$1$2${originHostname}$2`); // Keep original for now, can be proxy domain
+
+  // 2. window.location.host === 'example.com:443'
+  const hostPortPattern = new RegExp(
+    `(window\\.location\\.host\\s*[!=]==?\\s*)(['"\`])${escapeRe(originHost)}\\2`,
+    "gi"
+  );
+  js = js.replace(hostPortPattern, `$1$2${originHost}$2`);
+
+  // 3. Rewrite full origin URLs in string literals (but NOT in comments)
+  const eo = escapeRe(origin);
+  js = js.replace(new RegExp(`(['"\`])${eo}(/[^'"\\s\`]*)\\1`, "g"), `$1${prefix}$2$1`);
+
+  // 4. Protocol-relative URLs
+  const eh = escapeRe(originHost);
+  js = js.replace(new RegExp(`(['"\`])//${eh}(/[^'"\\s\`]*)\\1`, "g"), `$1${prefix}$2$1`);
+
+  return js;
 }
 
 function rewriteLocation(loc, origin, prefix) {
@@ -330,6 +374,17 @@ function proxyRequest(config, req, res) {
   try { parsed = new URL(req.url, "http://x"); }
   catch { return res.status(400).end(); }
 
+  // OAuth bypass: redirect to origin for specific paths (e.g., /auth/callback)
+  if (config.oauthBypassPaths && config.oauthBypassPaths.length > 0) {
+    const reqPath = parsed.pathname;
+    for (const bypassPath of config.oauthBypassPaths) {
+      if (reqPath === bypassPath || reqPath.startsWith(bypassPath + "/")) {
+        const redirectUrl = config.targetBase + parsed.pathname + parsed.search;
+        return res.writeHead(302, { Location: redirectUrl }).end();
+      }
+    }
+  }
+
   const upstreamUrl = config.targetBase + parsed.pathname + parsed.search;
 
   const fwdHeaders = {};
@@ -338,6 +393,24 @@ function proxyRequest(config, req, res) {
     if (!HOP_BY_HOP.has(lk) && lk !== "host") fwdHeaders[k] = v;
   }
   fwdHeaders.host = new URL(config.targetOrigin).host;
+
+  // Rewrite Referer and Origin headers to match target origin
+  if (config.rewriteRequestHeaders) {
+    if (fwdHeaders.referer && fwdHeaders.referer.includes(req.headers.host)) {
+      try {
+        const refUrl = new URL(fwdHeaders.referer);
+        const refPath = refUrl.pathname + refUrl.search + refUrl.hash;
+        // Strip proxy prefix from path if present
+        const cleanPath = config.proxyPrefix && refPath.startsWith(config.proxyPrefix)
+          ? refPath.slice(config.proxyPrefix.length) || "/"
+          : refPath;
+        fwdHeaders.referer = config.targetBase + cleanPath;
+      } catch {}
+    }
+    if (fwdHeaders.origin && fwdHeaders.origin.includes(req.headers.host)) {
+      fwdHeaders.origin = config.targetOrigin;
+    }
+  }
 
   let up;
   try { up = new URL(upstreamUrl); }
@@ -370,6 +443,12 @@ function proxyRequest(config, req, res) {
       }
       outHeaders[k] = v;
     }
+
+    // Add CORS headers to allow cross-origin requests
+    outHeaders["access-control-allow-origin"] = "*";
+    outHeaders["access-control-allow-methods"] = "GET, POST, PUT, DELETE, OPTIONS";
+    outHeaders["access-control-allow-headers"] = "*";
+    outHeaders["access-control-expose-headers"] = "*";
 
     const ct = (proxyRes.headers["content-type"] || "").toLowerCase();
     const { targetOrigin: origin, proxyPrefix: prefix, replaceRules: rules } = config;
@@ -449,6 +528,8 @@ function main() {
         proxy_prefix: b.proxy_prefix !== undefined ? b.proxy_prefix : config.proxyPrefix,
         replace_rules: b.replace_rules !== undefined ? b.replace_rules : config.replaceRules,
         admin_username: b.admin_username !== undefined ? b.admin_username : config.adminUsername,
+        oauth_bypass_paths: b.oauth_bypass_paths !== undefined ? b.oauth_bypass_paths : config.oauthBypassPaths,
+        rewrite_request_headers: b.rewrite_request_headers !== undefined ? b.rewrite_request_headers : config.rewriteRequestHeaders,
       };
       if (String(b.admin_password || "").trim()) raw.admin_password = b.admin_password;
       const next = normalizeConfig(raw);
