@@ -233,6 +233,19 @@ function rewriteHtml(html, origin, prefix, rules) {
   // Strip Cloudflare cdn-cgi challenge scripts (they can't work through a proxy domain)
   html = html.replace(/<script\b[^>]*\bsrc=["'][^"']*\/cdn-cgi\/[^"']*["'][^>]*><\/script>/gi, "");
 
+  // Rewrite base64-encoded data-stealth attributes (used by stealthOpen() for downloads)
+  // These bypass normal href rewriting since the URL is encoded
+  html = html.replace(/data-stealth=["']([A-Za-z0-9+/=]+)["']/gi, (m, b64) => {
+    try {
+      let decoded = Buffer.from(b64, "base64").toString("utf8");
+      // Apply replace_rules to the decoded URL
+      decoded = applyRules(decoded, rules);
+      // Re-encode and return
+      const newB64 = Buffer.from(decoded, "utf8").toString("base64");
+      return `data-stealth="${newB64}"`;
+    } catch { return m; }
+  });
+
   return html;
 }
 
