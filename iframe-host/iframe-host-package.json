@@ -1,0 +1,15 @@
+{
+  "name": "owned-iframe-host",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Constrained Express host page for pre-approved internal HTTPS content.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node check-config.js config.example.json",
+    "package": "powershell -ExecutionPolicy Bypass -File ./package-deploy.ps1"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
