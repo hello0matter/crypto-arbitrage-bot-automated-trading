@@ -1,6 +1,0 @@
-node_modules/
-config.json
-config.local.json
-config.production.json
-npm-debug.log*
-dist/
